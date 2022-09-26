@@ -8,19 +8,19 @@ CREATE TABLE IF NOT EXISTS student
 );
 
 
-CREATE TABLE IF NOT EXISTS course
-(
-    stud_id   varchar(7) NOT NULL references student (stud_id),
-    class_id  varchar(4) NOT NULL references class (class_id),
-    course_id varchar(4) NOT NULL primary key
-);
-
-
 CREATE TABLE IF NOT EXISTS class
 (
     class_id   varchar(4) NOT NULL primary key,
     class_name varchar    not null,
     teacher    varchar    not null
+);
+
+
+CREATE TABLE IF NOT EXISTS course
+(
+    stud_id   varchar(7) NOT NULL references student (stud_id),
+    class_id  varchar(4) NOT NULL references class (class_id),
+    course_id varchar(4) NOT NULL primary key
 );
 
 
