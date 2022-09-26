@@ -116,4 +116,3 @@ SELECT *
 FROM emergency_tel;
 SELECT *
 FROM exam;
-
