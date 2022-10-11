@@ -10,21 +10,36 @@ ORDER BY title;
 
 # Solicitud 3) Desea conocer el inventario actual. Por lo que requiere el listado de películas y cantidad de videos por
 # cada película, ordenado por cantidad de vídeos de forma descendiente.
-SELECT title, available as Cantidad
-FROM video,
-     videoforrent
-WHERE video.catalogNo = videoforrent.catalogNo
+SELECT title, SUM(IF(video.catalogNo = videoforrent.catalogNo, 1, 0)) as Cantidad
+FROM video, videoforrent
+GROUP BY title
 ORDER BY Cantidad DESC;
+
+# OW WITHOUT 0s
+SELECT title, COUNT(*) as Cantidad
+FROM video, videoforrent
+WHERE video.catalogNo = videoforrent.catalogNo
+GROUP BY title
+ORDER BY Cantidad DESC;
+
 
 # Solicitud 4) Desea conocer conocer el comportamiento de las rentas, para lo que quiere un listado de las películas y
 # el número de veces que se ha rentado cada película, el listado debe estar ordenado de mayor a menor por la cantidad
 # de rentas.
-SELECT title, COUNT(rentalNo) as Cantidad
+SELECT title, SUM(IF(video.catalogNo = videoforrent.catalogNo AND rentalagreement.videoNo = videoforrent.videoNo, 1, 0)) as Cantidad
 FROM video,
      rentalagreement,
      videoforrent
-WHERE video.catalogNo = videoforrent.catalogNo
-  AND rentalagreement.videoNo = videoforrent.videoNo
+GROUP BY title
+ORDER BY Cantidad DESC;
+
+# OW WITHOUT 0s
+SELECT title, COUNT(*) as Cantidad
+FROM video,
+     rentalagreement,
+     videoforrent
+WHERE video.catalogNo = videoforrent.catalogNo AND
+      rentalagreement.videoNo = videoforrent.videoNo
 GROUP BY title
 ORDER BY Cantidad DESC;
 
@@ -33,27 +48,67 @@ ORDER BY Cantidad DESC;
 # apellido, género, fecha de nacimiento de los clientes y el número de rentas realizadas.
 # El listado debe estar ordenado por rentas realizadas de mayor a menor. Los primeros en la lista
 # le permitirán conocer quienes son los mejores clientes.
-SELECT fName, lName, sex, DOB as FechaNacimiento, COUNT(rentalNo) as NumRenta
+SELECT fName as Nombre, lName as Apellido, sex as Genero, DOB as FechaNacimiento, COUNT(rentalNo) as NumeroRentas
 FROM members,
      rentalagreement
 WHERE members.memberNo = rentalagreement.memberNo
 GROUP by fName
-ORDER BY NumRenta DESC;
+ORDER BY NumeroRentas DESC;
 
 
 # Solicitud 7) Para propósitos de marketing quiere saber el nombre del director y la cantidad de mujeres y hombres que
 # han rentado sus películas.
+
+# NATURAL JOIN
+SELECT *
+FROM (SELECT DirectorName, COUNT(*) as Male
+      FROM director,
+           video,
+           videoforrent,
+           rentalagreement,
+           members
+      WHERE (director.DirectorNo = video.DirectorNo AND video.catalogNo = videoforrent.catalogNo AND
+             videoforrent.videoNo = rentalagreement.videoNo AND rentalagreement.memberNo = members.memberNo AND
+             members.sex = 'M')
+      GROUP BY DirectorName) as DNM
+         NATURAL JOIN (SELECT DirectorName, COUNT(*) as Female
+                       FROM director,
+                            video,
+                            videoforrent,
+                            rentalagreement,
+                            members
+                       WHERE (director.DirectorNo = video.DirectorNo AND video.catalogNo = videoforrent.catalogNo AND
+                              videoforrent.videoNo = rentalagreement.videoNo AND
+                              rentalagreement.memberNo = members.memberNo AND
+                              members.sex = 'F')
+                       GROUP BY DirectorName) as DNF;
+
+# USING SUM IF/CASE WHEN AS COUNTER
+SELECT DirectorName, SUM(IF(sex = 'F', 1, 0)) as Female, SUM(IF(sex = 'M', 1, 0)) as Male
+FROM director,
+     video,
+     videoforrent,
+     rentalagreement,
+     members
+WHERE (director.DirectorNo = video.DirectorNo AND video.catalogNo = videoforrent.catalogNo AND
+       videoforrent.videoNo = rentalagreement.videoNo AND rentalagreement.memberNo = members.memberNo)
+GROUP BY DirectorName;
+
+
+# OW WITH TWO TABLES CREATED; BUT NEEDS TO STORE
+CREATE table if not exists Male
 SELECT DirectorName, COUNT(*) as Male
 FROM director,
      video,
      videoforrent,
      rentalagreement,
      members
-
 WHERE (director.DirectorNo = video.DirectorNo AND video.catalogNo = videoforrent.catalogNo AND
-       videoforrent.videoNo = rentalagreement.videoNo AND rentalagreement.memberNo = members.memberNo AND members.sex = 'M')
+       videoforrent.videoNo = rentalagreement.videoNo AND rentalagreement.memberNo = members.memberNo AND
+       members.sex = 'M')
 GROUP BY DirectorName;
 
+CREATE table if not exists female
 SELECT DirectorName, COUNT(*) as Female
 FROM director,
      video,
@@ -61,7 +116,14 @@ FROM director,
      rentalagreement,
      members
 WHERE (director.DirectorNo = video.DirectorNo AND video.catalogNo = videoforrent.catalogNo AND
-       videoforrent.videoNo = rentalagreement.videoNo AND rentalagreement.memberNo = members.memberNo AND members.sex = 'F')
-GROUP BY DirectorName
+       videoforrent.videoNo = rentalagreement.videoNo AND rentalagreement.memberNo = members.memberNo AND
+       members.sex = 'F')
+GROUP BY DirectorName;
 
 # PUT TWO TABLES TOGETHER
+SELECT *
+FROM male
+NATURAL JOIN female;
+
+# DROP TABLES
+Drop table if exists male,female;
